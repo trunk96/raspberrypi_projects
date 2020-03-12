@@ -18,7 +18,7 @@ class shelly_listener:
             name = name.split('.')[0]
             shelly_list[name] = name+".local"
 
-@app.route("/turn_off")
+@app.route("/")
 def turn_off_shelly():
     payload = {'turn': 'off'}
     for shelly in shelly_list:
@@ -29,4 +29,4 @@ if __name__ == "__main__":
     zeroconf = Zeroconf()
     listener = shelly_listener()
     browser = ServiceBrowser(zeroconf, "_http._tcp.local.", listener)
-    app.run(host = '0.0.0.0', port=80)
+    app.run(host = '127.0.0.1', port=8080)
