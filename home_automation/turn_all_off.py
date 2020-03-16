@@ -23,6 +23,11 @@ def turn_off_shelly():
     payload = {'turn': 'off'}
     for shelly in shelly_list:
         r = requests.post("http://"+shelly_list[shelly]+"/relay/0", data = payload)
+    return app.send_static_file("index.html")
+
+@app.route("/favicon.ico")
+def route_favicon():
+    return app.send_static_file("favicon.ico")
 
 
 if __name__ == "__main__":
