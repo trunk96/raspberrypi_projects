@@ -1,6 +1,29 @@
 # Projects for Raspberry Pi
 
 ---
+
+## Installation
+
+First thing to do is clone this github repository:
+
+```
+git clone https://github.com/trunk96/raspberrypi_projects.git
+```
+
+then set the ``run.sh`` script to be owned by root:
+
+```
+sudo chmod 755 run.sh
+sudo chown root:root run.sh
+```
+
+finally add the following line at the end of the ``/etc/rc.local`` file (just before the ``exit 0`` command):
+
+```
+/complete/path/to/your/cloned/repository/run.sh &
+```
+
+---
 ## Proxy Server
 
 Once cloned the repository, the first thing to do is to start the proxy server. In such a way it is possible to bind different services into port :80.
