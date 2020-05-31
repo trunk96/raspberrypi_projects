@@ -1,3 +1,6 @@
+#!bin/bash
+cd "$(dirname "$0")"
+
 # sudo ./proxy/env/bin/python ./proxy/proxy.py &
 # ./home_automation/env/bin/python ./home_automation/turn_all_off.py &
 for D in `find . -maxdepth 1 -type d`
