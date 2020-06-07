@@ -8,6 +8,9 @@ LOCAL_HOST = '127.0.0.1'
 def proxy_turn_off():
     return get("http://127.0.0.1:8080").content
 
+@app.route("/test")
+def proxy_test():
+    return get("http://127.0.0.1:8081").content
 
 if __name__ == '__main__':
     app.run(host = '0.0.0.0', port=80)

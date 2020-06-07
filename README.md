@@ -42,4 +42,16 @@ In order to start this service go to `home_automation` and run:
 ./env/bin/python turn_all_off.py &
 ```
 
-to activate the service (it runs on port :8080)
+to activate the service (it runs on port :8080).
+
+This service exposes also the list of discovered shellies at `http://127.0.0.1/get_shellies` for any other service that requests them.
+
+## Test service
+In order to start this service go to `test` and run:
+
+```
+./env/bin/python test.py &
+```
+
+to activate the service (it runs on port :8081).
+This service makes use of Shelly turn off automation one, so please start Test service after it.   

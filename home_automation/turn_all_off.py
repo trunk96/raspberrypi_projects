@@ -1,6 +1,7 @@
 from zeroconf import ServiceBrowser, Zeroconf
 from flask import Flask
 import requests
+import json
 
 app = Flask(__name__)
 
@@ -29,6 +30,10 @@ def turn_off_shelly():
 def route_favicon():
     return app.send_static_file("favicon.ico")
 
+@app.route("/get_shellies")
+def get_shellies():
+    shellies = json.dumps(shelly_list)
+    return shellies
 
 if __name__ == "__main__":
     zeroconf = Zeroconf()
