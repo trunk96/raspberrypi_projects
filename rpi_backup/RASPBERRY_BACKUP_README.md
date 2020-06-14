@@ -1,7 +1,7 @@
-#Raspberry PI SD clone instructions
+# Raspberry PI SD clone instructions
 ---
 
-##Cloning
+## Cloning
 
 Power off the RaspberryPi and extract the SD card from it.
 Insert the SD card in a Linux machine and verify the SD card is not mounted:
@@ -34,7 +34,7 @@ chmod +x ./pishrink.sh
 In such a way the image is shrinked to the actual occupied size of the SD card and at the first boot it will be again expanded. 
 
 
-##Restore
+## Restore
 
 In order to restore the previously saved img file, it is possible to use the following command:
 
