@@ -54,4 +54,16 @@ In order to start this service go to `test` and run:
 ```
 
 to activate the service (it runs on port :8081).
-This service makes use of Shelly turn off automation one, so please start Test service after it.   
+This service makes use of Shelly turn off automation one, so please start Test service after it. 
+
+## PC Charging service
+In order to start this service go to `battery_autocharging` and run:
+
+```
+./env/bin/python battery_server.py &
+```
+
+to activate the service (it runs on port :8082)
+
+This service can be used to turn on and off my Meross power strip in order to start/stop the charging of my PC.
+This service is just a part of the system: the other part is hosted by the PC itself and measures the battery level in order to command the start/stop of the charging.  
