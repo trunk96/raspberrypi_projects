@@ -1,4 +1,4 @@
-#!bin/bash
+#!/bin/bash
 cd "$(dirname "$0")"
 
 # sudo ./proxy/env/bin/python ./proxy/proxy.py &
