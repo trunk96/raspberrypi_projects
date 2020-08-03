@@ -12,6 +12,10 @@ def proxy_turn_off():
 def proxy_test():
     return get("http://127.0.0.1:8081").content
 
+@app.route("/device_id")
+def proxy_device_id():
+    return get("http://127.0.0.1:8082").content
+
 @app.route("/start_charging")
 def proxy_start_charging():
     return get("http://127.0.0.1:8082/start_charging").content
