@@ -28,7 +28,7 @@ def add_hour(update, context):
 
 def confirm(update, context):
     hour = update.message.text
-    if True:
+    try:
         h = int(hour.split(":")[0])
         m = int(hour.split(":")[1])
         if 'h' in context.user_data:
@@ -46,11 +46,11 @@ def confirm(update, context):
         else:
             context.chat_data['job'] = [new_job]
         return ConversationHandler.END
-        """
-        except (ValueError):
+        
+    except (ValueError):
         update.message.reply_text("Orario nel formato sbagliato")
-        return 1
-        """
+        return ConversationHandler.END
+        
 def list_days(update, context):
     if 'day' not in context.user_data or len(context.user_data['day'])==0:
         update.message.reply_text("Nessun giorno attualmente impostato")
