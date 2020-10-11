@@ -1,8 +1,9 @@
 import logging
 import datetime
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
-from picklepersistencejobs import PicklePersistenceJobs
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, PicklePersistence
+
+import pytz
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -29,6 +30,7 @@ def add_hour(update, context):
 
 def confirm(update, context):
     hour = update.message.text
+    global jobs
     try:
         h = int(hour.split(":")[0])
         m = int(hour.split(":")[1])
@@ -39,13 +41,15 @@ def confirm(update, context):
 
         last = len(context.chat_data['h'])-1
         update.message.reply_text("Ho aggiunto un avviso per la lezione di " + context.chat_data['day'][last] + " alle ore " + context.chat_data['h'][last])
-        t = datetime.time(h, m, 00, 000000)
+        #t = pytz.timezone("Europe/Rome").localize(datetime.datetime.combine(datetime.datetime.today(), datetime.time(h, m, 00, 000000))).timetz()
+        t = datetime.time(h, m, 00, 000000, pytz.timezone("Europe/Rome"))
         day = (week[0].index(context.chat_data['day'][last]) - 2) % len(week[0])
         new_job = context.job_queue.run_daily(alarm, t, days=(day,), context = update.message.chat_id)
-        if 'job' in context.chat_data:
-            context.chat_data['job'].append(new_job)
+        logging.info("Added new job for chat %s on day %s at %s", update.message.chat_id, day, hour)
+        if update.message.chat_id in jobs:
+            jobs[update.message.chat_id].append(new_job)
         else:
-            context.chat_data['job'] = [new_job]
+            jobs[update.message.chat_id] = [new_job]
         return ConversationHandler.END
         
     except (ValueError):
@@ -75,14 +79,15 @@ def remove_day(update, context):
     return 0
 
 def confirm_remove(update, context):
+    global jobs
     try:
         index = int(update.message.text)
-        job = context.chat_data['job'][index-1]
+        job = jobs[update.message.chat_id][index-1]
         job.schedule_removal()
         update.message.reply_text("Ho correttamente rimosso la seguente lezione: " + context.chat_data['day'][index-1] + " alle ore " + context.chat_data['h'][index-1], reply_markup = ReplyKeyboardRemove())
         del context.chat_data['day'][index-1]
         del context.chat_data['h'][index-1]
-        del context.chat_data['job'][index-1]
+        del jobs[update.message.chat_id][index-1]
     except (ValueError):
         update.message.reply_text("Qualcosa è andato storto...", reply_markup = ReplyKeyboardRemove())
     return ConversationHandler.END
@@ -96,35 +101,37 @@ def cancel(update, context):
 def list_jobs(update, context):
     l = context.job_queue.jobs()
     for job in l:
-        update.message.reply_text(str(job))
+        update.message.reply_text(str(job.next_t))
+
+jobs = {}
 
 def main():
-    # TODO PicklePersistence tries to save on disk Jobs objects (that are thread_locked) that are saved in chat_data
-    # this means that it failes to dump the pickle and when it restarts, it fails to reload the pickle (it is 0 bytes)
-    # In this case it is better to create a new PicklePersistence class to avoid saving Jobs contained in chat_data
-    # and, possibly, to recreate jobs when the data are loaded again (remember that all the data for the creation of
-    # the job are saved in user_data and in bot_data)
-    my_persistence = PicklePersistenceJobs("/app/data/storage.pickle", single_file=False)
+
+    my_persistence = PicklePersistence("/app/data/storage.pickle", single_file=False)
     f = open("./API_KEY.txt", "r")
     api_key = f.read().strip()
     f.close()
     updater = Updater(api_key, persistence = my_persistence, use_context = True)
     dp = updater.dispatcher
+    global jobs
+    #dp.job_queue.scheduler.configure(timezone=pytz.timezone("Europe/Rome"))
 
     # Here we have to restore all the jobs that are lost in the bot restart (if any)
 
     for cid in dp.chat_data:
-        if 'job' not in dp.chat_data[cid]:
+        if 'h' not in dp.chat_data[cid]:
             continue
-        dp.chat_data[cid]['job'] = []
         for i in range(len(dp.chat_data[cid]['h'])):
             hour = dp.chat_data[cid]['h'][i]
             h = int(hour.split(":")[0])
             m = int(hour.split(":")[1])
-            t = datetime.time(h, m, 00, 000000)
+            #t = pytz.timezone("Europe/Rome").localize(datetime.datetime.combine(datetime.datetime.today(), datetime.time(h, m, 00, 000000))).timetz()
+            t = datetime.time(h, m, 00, 000000, pytz.timezone("Europe/Rome"))
             day = (week[0].index(dp.chat_data[cid]['day'][i]) - 2) % len(week[0])
             new_job = dp.job_queue.run_daily(alarm, t, days=(day,), context = int(cid))
-            dp.chat_data[cid]['job'].append(new_job)
+            if cid not in jobs:
+                jobs[cid] = []
+            jobs[cid].append(new_job)
             logging.info("Restored job for chat id %s on day %s at %s", cid, dp.chat_data[cid]['day'][i], hour)
 
     conv_handler = ConversationHandler(

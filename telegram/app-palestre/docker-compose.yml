@@ -1,11 +1,11 @@
 version: "3"
 services:
-        bot:
+        apppalestrebot:
                 build:
                         context: .
                         dockerfile: Dockerfile
                 image: apppalestrebot
-                container_name: bot
+                container_name: apppalestrebot
                 restart: always
                 tty: true
                 volumes:
