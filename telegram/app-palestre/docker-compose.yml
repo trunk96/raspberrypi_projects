@@ -9,4 +9,5 @@ services:
                 restart: always
                 tty: true
                 volumes:
-                        - ./data:/app/data
+                        - "./data:/app/data"
+
