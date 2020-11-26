@@ -1,0 +1,13 @@
+version: "3"
+services:
+        apppalestrebot:
+                build:
+                        context: .
+                        dockerfile: Dockerfile
+                image: apppalestrebot
+                container_name: apppalestrebot
+                restart: always
+                tty: true
+                volumes:
+                        - "./data:/app/data"
+
