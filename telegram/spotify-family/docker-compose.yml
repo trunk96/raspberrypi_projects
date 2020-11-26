@@ -1,11 +1,11 @@
 version: "3"
 services:
-        apppalestrebot:
+        spotifyfamilybot:
                 build:
                         context: .
                         dockerfile: Dockerfile
-                image: apppalestrebot
-                container_name: apppalestrebot
+                image: spotifyfamilybot
+                container_name: spotifyfamilybot
                 restart: always
                 tty: true
                 volumes:
