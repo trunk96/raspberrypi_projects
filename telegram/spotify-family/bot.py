@@ -24,18 +24,18 @@ def confirm(update, context):
     global jobs
     try:
         day = int(day)
-        context.chat_data['day'] = [day]
+        context.chat_data['day'] = day
         context.chat_data['h'] = HOUR_TO_SEND
         context.chat_data['m'] = MINUTE_TO_SEND
-        update.message.reply_text("Ho aggiunto un avviso per il giorno "+str(contex.chat_data['day'])+" di ogni mese")
+        update.message.reply_text("Ho aggiunto un avviso per il giorno "+str(context.chat_data['day'])+" di ogni mese")
         #t = pytz.timezone("Europe/Rome").localize(datetime.datetime.combine(datetime.datetime.today(), datetime.time(h, m, 00, 000000))).timetz()
         t = datetime.time(context.chat_data["h"], context.chat_data["m"], 00, 000000, pytz.timezone("Europe/Rome"))
 
         new_job = context.job_queue.run_monthly(alarm, t, day=day, context = update.message.chat_id)
 
-        logging.info("Added new job for chat %s on day %s at %s", update.message.chat_id, day, hour)
+        logging.info("Added new job for chat %s on day %s at %s", update.message.chat_id, day, context.chat_data['h'])
 
-        jobs[update.message.chat_id] = [new_job]
+        jobs[update.message.chat_id] = new_job
         return ConversationHandler.END
         
     except (ValueError):
@@ -43,47 +43,19 @@ def confirm(update, context):
         return ConversationHandler.END
         
 def list_days(update, context):
-    if 'day' not in context.chat_data or len(context.chat_data['day'])==0:
+    if 'day' not in context.chat_data:
         update.message.reply_text("Nessun giorno attualmente impostato")
         return
-    string = ""
-    for i in range(len(context.chat_data['day'])):
-        if i != 0:
-            string += "\n"
-        string += str(i+1) + ". " + context.chat_data['day'][i] + " alle ore " + context.chat_data['h'][i]
+    string = str(context.chat_data['day']) + " alle ore " + str(context.chat_data['h'])
     update.message.reply_text(string)
 
 def remove_day(update, context):
-    string = ""    
-    choices = [[]]
-    for i in range(len(context.chat_data['day'])):
-        if i != 0:
-            string +="\n"
-        string += str(i+1) + ". " + context.chat_data['day'][i] + " alle ore " + context.chat_data['h'][i]
-        choices[0].append(str(i+1))
-    update.message.reply_text("Ho in memoria le seguenti promemoria: \n\n" + string + "\n\nQuale vuoi eliminare?", reply_markup=ReplyKeyboardMarkup(choices, one_time_keyboard=True))
+    update.message.reply_text("Ho correttamente rimosso il seguente promemoria: " + context.chat_data['day'] + " alle ore " + context.chat_data['h'])
+    del context.chat_data['day']
+    del context.chat_data['h']
+    del context.chat_data['m']
+    del jobs[update.message.chat_id]
     return 0
-
-def confirm_remove(update, context):
-    global jobs
-    try:
-        index = int(update.message.text)
-        job = jobs[update.message.chat_id][index-1]
-        job.schedule_removal()
-        update.message.reply_text("Ho correttamente rimosso il seguente promemoria: " + context.chat_data['day'][index-1] + " alle ore " + context.chat_data['h'][index-1], reply_markup = ReplyKeyboardRemove())
-        del context.chat_data['day'][index-1]
-        del context.chat_data['h'][index-1]
-        del context.chat_data['m'][index-1]
-        del jobs[update.message.chat_id][index-1]
-    except (ValueError):
-        update.message.reply_text("Qualcosa è andato storto...", reply_markup = ReplyKeyboardRemove())
-    return ConversationHandler.END
-
-def cancel(update, context):
-    if len(context.chat_data['day']) != len(context.chat_data['h']):
-        del context.chat_data['day'][len(context.chat_data['day']-1)]
-    update.message.reply_text("Operazione annullata")
-    return ConcersationHandler.END
 
 def list_jobs(update, context):
     l = context.job_queue.jobs()
@@ -106,38 +78,27 @@ def main():
     # Here we have to restore all the jobs that are lost in the bot restart (if any)
 
     for cid in dp.chat_data:
-        if 'h' not in dp.chat_data[cid]:
+        if 'day' not in dp.chat_data[cid]:
             continue
-        for i in range(len(dp.chat_data[cid]['h'])):
-            hour = dp.chat_data[cid]['h'][i]
-            h = int(hour.split(":")[0])
-            m = int(hour.split(":")[1])
-            #t = pytz.timezone("Europe/Rome").localize(datetime.datetime.combine(datetime.datetime.today(), datetime.time(h, m, 00, 000000))).timetz()
-            t = datetime.time(h, m, 00, 000000, pytz.timezone("Europe/Rome"))
-            day = (week[0].index(dp.chat_data[cid]['day'][i]) - 2) % len(week[0])
-            new_job = dp.job_queue.run_daily(alarm, t, days=(day,), context = int(cid))
-            if cid not in jobs:
-                jobs[cid] = []
-            jobs[cid].append(new_job)
-            logging.info("Restored job for chat id %s on day %s at %s", cid, dp.chat_data[cid]['day'][i], hour)
+        h = dp.chat_data[cid]['h']
+        m = dp.chat_data[cid]['m']
+        #t = pytz.timezone("Europe/Rome").localize(datetime.datetime.combine(datetime.datetime.today(), datetime.time(h, m, 00, 000000))).timetz()
+        t = datetime.time(h, m, 00, 000000, pytz.timezone("Europe/Rome"))
+        day = dp.chat_data[cid]['day']
+        new_job = dp.job_queue.run_monthly(alarm, t, day=day, context = int(cid))
+        jobs[cid] = new_job
+        logging.info("Restored job for chat id %s on day %s at %s", cid, dp.chat_data[cid]['day'], h)
 
     conv_handler = ConversationHandler(
             entry_points=[CommandHandler("start", start)],
             states={
                 0: [MessageHandler(Filters.all, confirm)]
                 },
-            fallbacks = [CommandHandler('annulla', cancel)])
+                fallbacks = [None])
     dp.add_handler(conv_handler)
     dp.add_handler(CommandHandler("mostra_giorno", list_days))
     dp.add_handler(CommandHandler("jobs", list_jobs))
-    
-    conv_handler2 = ConversationHandler(
-            entry_points=[CommandHandler("rimuovi_giorno", remove_day)],
-            states = {
-                0: [MessageHandler(Filters.all, confirm_remove)]
-            },
-            fallbacks = [CommandHandler('annulla', cancel)])
-    dp.add_handler(conv_handler2)
+    dp.add_handler(CommandHandler("rimuovi_giorno", remove_day))
 
     updater.start_polling()
 
