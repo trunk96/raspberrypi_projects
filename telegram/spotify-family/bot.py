@@ -2,6 +2,7 @@ import logging
 import datetime
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, PicklePersistence
+import calendar
 
 import pytz
 
@@ -17,7 +18,11 @@ def start(update, context):
 
 def alarm(context):
     job = context.job
-    context.bot.send_message(job.context, text="Scadenza Pagamento")
+    string = "Scadenza Pagamento\n Situazione attuale:"
+    for name in context._dispatcher.chat_data[job.context]:
+        if name != 'day' and name != 'h' and name != 'm':
+            string += "\n" + name + " -> ultimo mese: " + context._dispatcher.chat_data[job.context][name].strftime("%m/%Y")
+    context.bot.send_message(job.context, text=string)
 
 def confirm(update, context):
     day = update.message.text
@@ -62,6 +67,42 @@ def list_jobs(update, context):
     for job in l:
         update.message.reply_text(str(job.next_t))
 
+def pagati(update, context):
+    update.message.reply_text("Indica il nome e quanti mesi")
+    return 0
+
+names = ["ALESSANDRA", "ALESSANDRO", "EMANUELE", "GIANLUCA", "MONICA", "TIZIANO"]
+def add_months(sourcedate, months):
+    month = sourcedate.month - 1 + months
+    year = sourcedate.year + month // 12
+    month = month % 12 + 1
+    day = min(sourcedate.day, calendar.monthrange(year,month)[1])
+    return datetime.date(year, month, day)
+
+def confirm_pagati(update, context):
+    string = update.message.text
+    try:
+        name = string.split(",")[0].upper()
+        months = int(string.split(",")[1])
+        if name not in names:
+            update.message.reply_text("Nome non esistente, riprova")
+            return 0
+        context.chat_data[name] = add_months(context.chat_data[name], months)
+        update.message.reply_text("Aggiornato: "+ name + " -> ultimo mese: " +context.chat_data[name].strftime("%m/%Y"))
+        logging.info("Updated: "+ name + " -> last_month: " +context.chat_data[name].strftime("%m/%Y"))
+        return ConversationHandler.END
+    except:
+        update.message.reply_text("Indica il nome e quanti mesi nel formato \"Nome\", \"numero_mesi\"")
+        return 0
+
+def payments(update, context):
+    string = "Situazione attuale:"
+    for name in context.chat_data:
+        if name != 'day' and name != 'h' and name != 'm':
+            string += "\n" + name + " -> ultimo mese: " + context.chat_data[name].strftime("%m/%Y")
+    update.message.reply_text(string)
+
+
 jobs = {}
 
 def main():
@@ -89,6 +130,11 @@ def main():
         jobs[cid] = new_job
         logging.info("Restored job for chat id %s on day %s at %s", cid, dp.chat_data[cid]['day'], h)
 
+        if names[1] not in dp.chat_data[cid]:
+            for name in names:
+                dp.chat_data[cid][name] = datetime.date.today()
+
+
     conv_handler = ConversationHandler(
             entry_points=[CommandHandler("start", start)],
             states={
@@ -96,9 +142,17 @@ def main():
                 },
                 fallbacks = [None])
     dp.add_handler(conv_handler)
+    conv_handler2 = ConversationHandler(
+            entry_points=[CommandHandler("ricevuti", pagati)],
+            states={
+                0: [MessageHandler(Filters.all, confirm_pagati)]
+                },
+                fallbacks = [None])
+    dp.add_handler(conv_handler2)
     dp.add_handler(CommandHandler("mostra_giorno", list_days))
     dp.add_handler(CommandHandler("jobs", list_jobs))
     dp.add_handler(CommandHandler("rimuovi_giorno", remove_day))
+    dp.add_handler(CommandHandler("mostra_situazione_pagamenti", payments))
 
     updater.start_polling()
 
