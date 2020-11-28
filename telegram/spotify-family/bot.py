@@ -19,9 +19,8 @@ def start(update, context):
 def alarm(context):
     job = context.job
     string = "Scadenza Pagamento\n Situazione attuale:"
-    for name in context._dispatcher.chat_data[job.context]:
-        if name != 'day' and name != 'h' and name != 'm':
-            string += "\n" + name + " -> ultimo mese: " + context._dispatcher.chat_data[job.context][name].strftime("%m/%Y")
+    for name in context._dispatcher.chat_data[job.context]["names"]:
+        string += "\n" + name + " -> ultimo mese: " + context._dispatcher.chat_data[job.context]["names"][name].strftime("%m/%Y")
     context.bot.send_message(job.context, text=string)
 
 def confirm(update, context):
@@ -84,12 +83,12 @@ def confirm_pagati(update, context):
     try:
         name = string.split(",")[0].upper()
         months = int(string.split(",")[1])
-        if name not in names:
+        if name not in context.chat_data["names"]:
             update.message.reply_text("Nome non esistente, riprova")
             return 0
-        context.chat_data[name] = add_months(context.chat_data[name], months)
-        update.message.reply_text("Aggiornato: "+ name + " -> ultimo mese: " +context.chat_data[name].strftime("%m/%Y"))
-        logging.info("Updated: "+ name + " -> last_month: " +context.chat_data[name].strftime("%m/%Y"))
+        context.chat_data["names"][name] = add_months(context.chat_data["names"][name], months)
+        update.message.reply_text("Aggiornato: "+ name + " -> ultimo mese: " +context.chat_data["names"][name].strftime("%m/%Y"))
+        logging.info("Updated: "+ name + " -> last_month: " +context.chat_data["names"][name].strftime("%m/%Y"))
         return ConversationHandler.END
     except:
         update.message.reply_text("Indica il nome e quanti mesi nel formato \"Nome\", \"numero_mesi\"")
@@ -97,11 +96,37 @@ def confirm_pagati(update, context):
 
 def payments(update, context):
     string = "Situazione attuale:"
-    for name in context.chat_data:
-        if name != 'day' and name != 'h' and name != 'm':
-            string += "\n" + name + " -> ultimo mese: " + context.chat_data[name].strftime("%m/%Y")
+    for name in context.chat_data["names"]:
+        string += "\n" + name + " -> ultimo mese: " + context.chat_data["names"][name].strftime("%m/%Y")
     update.message.reply_text(string)
 
+def add_name(update, context):
+    update.message.reply_text("Scrivi il nome da aggiungere")
+    return 0
+
+def confirm_name(update, context):
+    n = update.message.text
+    name = n.upper()
+    if "names" not in context.chat_data:
+        context.chat_data["names"] = {}
+    context.chat_data["names"][name] = datetime.date.today()
+    update.message.reply_text("Aggiunto con successo "+n)
+    return ConversationHandler.END
+
+def remove_name(update, context):
+    update.message.reply_text("Scrivi il nome da rimuovere")
+    return 0
+def confirm_remove_name(update, context):
+    n = update.message.text
+    name = n.upper()
+    if "names" not in context.chat_data:
+        context.chat_data["names"] = {}
+    if name not in context.chat_data["names"]:
+        update.message.reply_text("Il nome indicato non è presente nel mio database")
+        return ConversationHandler.END
+    del context.chat_data["names"][name]
+    update.message.reply_text("Rimosso con successo "+n)
+    return ConversationHandler.END
 
 jobs = {}
 
@@ -130,9 +155,6 @@ def main():
         jobs[cid] = new_job
         logging.info("Restored job for chat id %s on day %s at %s", cid, dp.chat_data[cid]['day'], h)
 
-        if names[1] not in dp.chat_data[cid]:
-            for name in names:
-                dp.chat_data[cid][name] = datetime.date.today()
 
 
     conv_handler = ConversationHandler(
@@ -149,6 +171,19 @@ def main():
                 },
                 fallbacks = [None])
     dp.add_handler(conv_handler2)
+    conv_handler3 = ConversationHandler(
+            entry_points=[CommandHandler("aggiungi_persona", add_name)],
+            states={
+                0: [MessageHandler(Filters.all, confirm_name)]
+                },
+                fallbacks = [None])
+    conv_handler3 = ConversationHandler(
+            entry_points=[CommandHandler("rimuovi_persona", remove_name)],
+            states={
+                0: [MessageHandler(Filters.all, confirm_remove_name)]
+                },
+                fallbacks = [None])
+    dp.add_handler(conv_handler3)
     dp.add_handler(CommandHandler("mostra_giorno", list_days))
     dp.add_handler(CommandHandler("jobs", list_jobs))
     dp.add_handler(CommandHandler("rimuovi_giorno", remove_day))
