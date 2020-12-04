@@ -1,29 +1,43 @@
-from flask import Flask
-from requests import get
+from flask import Flask, request, jsonify
+import requests
+import json
+import logging
+
 
 app = Flask('__main__')
 LOCAL_HOST = '127.0.0.1'
 
-@app.route('/turn_off')
-def proxy_turn_off():
-    return get("http://127.0.0.1:8080").content
+app_dict = {}
 
-@app.route("/test")
+@app.route("/register_app", methods=["POST"])
+def register_app():
+    data = json.loads(request.get_json())
+    app_name = data.get("name", "noname")
+    app_addr = request.remote_addr
+    app_dict[app_name] = app_addr
+    app.logger.info("Registered app %s at address %s", app_name, app_addr)
+    return "ok"
+
+@app.route("/<app_name>/<path:text>", methods=["POST"])
+def proxy_post(app_name, text):
+    if app_name in app_dict:
+        return requests.post("http://"+ app_dict[app_name]+"/"+text, json = request.get_json()).content
+    return 'bad request!', 400
+
+@app.route("/<app_name>/<path:text>", methods=["GET"])
+def proxy_get(app_name, text):
+    app.logger.info("GET call on /%s/%s", app_name, text)
+    if app_name in app_dict:
+        return requests.get("http://"+ app_dict[app_name]+"/"+text).content
+    return 'bad request!', 400
+
+@app.route("/")
 def proxy_test():
-    return get("http://127.0.0.1:8081").content
-
-@app.route("/device_id")
-def proxy_device_id():
-    return get("http://127.0.0.1:8082").content
-
-@app.route("/start_charging")
-def proxy_start_charging():
-    return get("http://127.0.0.1:8082/start_charging").content
-
-@app.route("/stop_charging")
-def proxy_stop_charging():
-    return get("http://127.0.0.1:8082/stop_charging").content
-
+    return requests.get("http://test_page/").content
 
 if __name__ == '__main__':
-    app.run(host = '0.0.0.0', port=80)
+    app.run()
+else:
+    gunicorn_logger = logging.getLogger("gunicorn.error")
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)

@@ -1,0 +1,37 @@
+version: '2'
+services:
+        proxy:
+                build:
+                        context: ./proxy
+                        dockerfile: Dockerfile
+                stdin_open: true
+                tty: true
+                container_name: rpi_proxy
+                networks:
+                        - proxy-network
+                ports:
+                        - "80:80"
+        lights_control:
+                build:
+                        context: ./home_automation
+                        dockerfile: Dockerfile
+                stdin_open: true
+                tty: true
+                container_name: lights_control
+                depends_on:
+                        - "proxy"
+                networks:
+                        - proxy-network
+                        - avahi-network
+networks:
+        proxy-network:
+                driver: bridge
+        avahi-network:
+                driver: macvlan
+                driver_opts:
+                        parent: eth0
+                ipam:
+                        config:
+                                - subnet: 192.168.178.0/24
+                                  gateway: 192.168.178.1
+                                  ip_range: 192.168.178.64/26 
