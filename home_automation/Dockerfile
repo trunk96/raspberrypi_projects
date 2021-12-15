@@ -5,4 +5,4 @@ RUN python3 -m pip install flask requests gunicorn zeroconf
 RUN mkdir /app
 WORKDIR /app
 ADD . /app
-CMD gunicorn --bind 0.0.0.0:80 --preload wsgi:app
+CMD gunicorn --bind 0.0.0.0:80 --preload --log-level debug wsgi:app
